@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Indian Cricket Team Member Face Identification | AI Computer Vision</title>
+  <meta name="description"
+    content="State-of-the-art Machine Learning & Computer Vision system to identify Indian Cricket Team players from photos.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body class="dark-theme">
+  <!-- Dynamic Gradient Ambient Glows -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+  <div class="ambient-glow glow-3"></div>
+
+  <!-- Navigation Header -->
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="brand">
+        <div class="brand-icon">
+          <i class="fa-solid fa-trophy text-gold"></i>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">CRIC<span class="accent-text">VISION</span> AI</span>
+          <span class="brand-subtitle">Team India Face Identification System</span>
+        </div>
+      </div>
+
+      <nav class="nav-links">
+        <button class="nav-tab-btn active" data-tab="identifier-tab">
+          <i class="fa-solid fa-camera-retro"></i> Face Identifier
+        </button>
+        <button class="nav-tab-btn" data-tab="roster-tab">
+          <i class="fa-solid fa-users"></i> Team Roster
+        </button>
+        <button class="nav-tab-btn" data-tab="analytics-tab">
+          <i class="fa-solid fa-chart-line"></i> Model Analytics
+        </button>
+      </nav>
+
+      <div class="nav-actions">
+        <div class="status-pill" id="system-status-pill">
+          <span class="status-dot online"></span>
+          <span class="status-text">AI Ready (10 Players)</span>
+        </div>
+        <button class="btn btn-sm btn-outline" id="quick-retrain-btn" title="Retrain AI Model">
+          <i class="fa-solid fa-arrows-rotate"></i> Retrain
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-content">
+
+    <!-- ==================== TAB 1: FACE IDENTIFIER ==================== -->
+    <section id="identifier-tab" class="tab-panel active">
+      <div class="section-hero">
+        <div class="badge-pill"><i class="fa-solid fa-bolt"></i> Computer Vision & Machine Learning</div>
+        <h1 class="hero-title">Identify Indian Cricket Legends <span class="gradient-text">Instantly</span></h1>
+        <p class="hero-desc">Upload any match picture, portrait, or team photo. Our multi-stage face detection and
+          Wavelet-SVM classifier pinpoints the player with precision.</p>
+      </div>
+
+      <div class="grid-layout">
+        <!-- Left: Upload & Input Panel -->
+        <div class="glass-card upload-card">
+          <div class="card-header">
+            <h2 class="card-title"><i class="fa-solid fa-cloud-arrow-up text-accent"></i> Input Image</h2>
+            <span class="file-format-badge">JPG, PNG, WEBP</span>
+          </div>
+
+          <!-- Drag and Drop Area -->
+          <div class="drop-zone" id="drop-zone">
+            <input type="file" id="file-input" accept="image/*" class="file-hidden-input">
+            <div class="drop-zone-content" id="drop-zone-prompt">
+              <div class="upload-icon-circle">
+                <i class="fa-solid fa-image"></i>
+              </div>
+              <h3>Drag & Drop Image Here</h3>
+              <p>or <span class="browse-link">browse from your computer</span></p>
+            </div>
+            <div class="preview-wrapper hidden" id="preview-container">
+              <img id="image-preview" src="" alt="Selected Preview">
+              <button class="btn-clear-preview" id="btn-clear-file" title="Remove image">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick Samples Selector -->
+          <div class="sample-selector-block">
+            <label class="block-label"><i class="fa-solid fa-wand-magic-sparkles"></i> Or Try Quick Player Demo:</label>
+            <div class="sample-chips">
+              <button class="sample-chip" data-sample="virat_kohli">👑 Virat Kohli</button>
+              <button class="sample-chip" data-sample="rohit_sharma">🏏 Rohit Sharma</button>
+              <button class="sample-chip" data-sample="ms_dhoni">🧤 MS Dhoni</button>
+              <button class="sample-chip" data-sample="sachin_tendulkar">⭐ Sachin</button>
+              <button class="sample-chip" data-sample="jasprit_bumrah">⚡ Bumrah</button>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button class="btn btn-primary btn-block btn-lg" id="btn-run-recognition">
+            <i class="fa-solid fa-crosshairs"></i> Run Face Identification
+          </button>
+        </div>
+
+        <!-- Right: Real-time Results & Player Card -->
+        <div class="glass-card results-card" id="results-panel">
+          <div class="card-header">
+            <h2 class="card-title"><i class="fa-solid fa-bullseye text-accent"></i> Detection Results</h2>
+            <span class="badge badge-success" id="detection-count-badge">Ready</span>
+          </div>
+
+          <!-- Placeholder when no detection yet -->
+          <div class="empty-state" id="empty-state">
+            <div class="empty-icon-wrap">
+              <i class="fa-solid fa-id-card-clip"></i>
+            </div>
+            <h3>No Face Analyzed Yet</h3>
+            <p>Upload a cricket image or choose a demo sample on the left to see instant facial recognition and player
+              stats.</p>
+          </div>
+
+          <!-- Loading Spinner -->
+          <div class="loading-state hidden" id="loading-state">
+            <div class="spinner-ring"></div>
+            <p>Extracting facial features & computing Wavelet embeddings...</p>
+          </div>
+
+          <!-- Populated Output Content -->
+          <div class="results-content hidden" id="results-content">
+            <!-- Visual Annotated Image View -->
+            <div class="annotated-image-box">
+              <img id="annotated-result-img" src="" alt="Annotated Detections">
+            </div>
+
+            <!-- Primary Recognized Player Profile Card -->
+            <div class="player-profile-highlight" id="top-player-card">
+              <div class="player-card-header">
+                <div class="player-avatar-badge" id="player-avatar-badge">
+                  <i class="fa-solid fa-user-check"></i>
+                </div>
+                <div class="player-headline">
+                  <div class="jersey-pill" id="card-jersey">No. 18</div>
+                  <h3 class="player-name" id="card-player-name">Virat Kohli</h3>
+                  <div class="player-nickname" id="card-player-nickname">"King Kohli"</div>
+                </div>
+                <div class="confidence-circle-wrap">
+                  <div class="confidence-val" id="card-confidence-pct">96%</div>
+                  <div class="confidence-label">Match Conf.</div>
+                </div>
+              </div>
+
+              <!-- Confidence Progress Bar -->
+              <div class="conf-meter-wrapper">
+                <div class="conf-bar-track">
+                  <div class="conf-bar-fill" id="card-conf-bar" style="width: 96%;"></div>
+                </div>
+              </div>
+
+              <!-- Career Key Stats Grid -->
+              <div class="player-stats-grid">
+                <div class="stat-pill">
+                  <span class="stat-lbl">Role</span>
+                  <strong class="stat-val" id="card-stat-role">Top-order Batter</strong>
+                </div>
+                <div class="stat-pill">
+                  <span class="stat-lbl">Int'l Runs</span>
+                  <strong class="stat-val" id="card-stat-runs">27,000+</strong>
+                </div>
+                <div class="stat-pill">
+                  <span class="stat-lbl">Centuries</span>
+                  <strong class="stat-val" id="card-stat-centuries">80</strong>
+                </div>
+                <div class="stat-pill">
+                  <span class="stat-lbl">ICC Ranking</span>
+                  <strong class="stat-val" id="card-stat-icc">Top 3 ODI</strong>
+                </div>
+              </div>
+
+              <div class="player-bio-text" id="card-player-bio">
+                Renowned for supreme chasing abilities, unmatched consistency, and aggressive leadership.
+              </div>
+
+              <!-- Top-3 Probabilities Breakdown -->
+              <div class="top-ranks-block">
+                <h4 class="subhead-title"><i class="fa-solid fa-chart-simple"></i> Prediction Confidence Breakdown</h4>
+                <div class="top-ranks-list" id="top-ranks-list">
+                  <!-- Injected via JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: TEAM ROSTER & CATALOG ==================== -->
+    <section id="roster-tab" class="tab-panel">
+      <div class="section-hero">
+        <div class="badge-pill"><i class="fa-solid fa-star text-gold"></i> Indian Cricket Legends</div>
+        <h1 class="hero-title">Recognized Team India <span class="gradient-text">Squad</span></h1>
+        <p class="hero-desc">Explore the 10 cricket superstars indexed by this vision model with their career batting,
+          bowling, and captaincy accolades.</p>
+      </div>
+
+      <!-- Filters Row -->
+      <div class="filter-controls-row">
+        <div class="search-input-wrap">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="roster-search" placeholder="Search by player name, nickname, or role...">
+        </div>
+        <div class="role-filter-chips">
+          <button class="filter-chip active" data-filter="all">All Squad (10)</button>
+          <button class="filter-chip" data-filter="Batter">Batters</button>
+          <button class="filter-chip" data-filter="Bowler">Bowlers</button>
+          <button class="filter-chip" data-filter="All-rounder">All-rounders</button>
+          <button class="filter-chip" data-filter="Wicketkeeper">Wicketkeepers</button>
+        </div>
+      </div>
+
+      <!-- Player Cards Grid -->
+      <div class="roster-grid" id="roster-grid">
+        <!-- Injected via JavaScript from DEFAULT_PLAYER_PROFILES -->
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: MODEL ANALYTICS ==================== -->
+    <section id="analytics-tab" class="tab-panel">
+      <div class="section-hero">
+        <div class="badge-pill"><i class="fa-solid fa-brain"></i> Machine Learning Benchmark</div>
+        <h1 class="hero-title">Model Architecture & <span class="gradient-text">Evaluation Metrics</span></h1>
+        <p class="hero-desc">Detailed breakdown of the 2D Wavelet transform feature pipeline, PCA variance, Support
+          Vector Machine (SVM) hyperparameter tuning, and confusion matrix.</p>
+      </div>
+
+      <!-- Top KPI Cards -->
+      <div class="analytics-kpi-grid">
+        <div class="glass-card kpi-card">
+          <div class="kpi-icon"><i class="fa-solid fa-circle-check text-success"></i></div>
+          <div class="kpi-data">
+            <span class="kpi-num" id="kpi-accuracy">98.5%</span>
+            <span class="kpi-title">Test Accuracy (Top-1)</span>
+          </div>
+        </div>
+
+        <div class="glass-card kpi-card">
+          <div class="kpi-icon"><i class="fa-solid fa-users-gear text-accent"></i></div>
+          <div class="kpi-data">
+            <span class="kpi-num">10 Players</span>
+            <span class="kpi-title">Classes Configured</span>
+          </div>
+        </div>
+
+        <div class="glass-card kpi-card">
+          <div class="kpi-icon"><i class="fa-solid fa-cubes-stacked text-gold"></i></div>
+          <div class="kpi-data">
+            <span class="kpi-num">16,384 Dim</span>
+            <span class="kpi-title">Wavelet + Color Features</span>
+          </div>
+        </div>
+
+        <div class="glass-card kpi-card">
+          <div class="kpi-icon"><i class="fa-solid fa-bolt text-danger"></i></div>
+          <div class="kpi-data">
+            <span class="kpi-num">&lt; 15 ms</span>
+            <span class="kpi-title">Inference Latency</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Architecture Flow & Confusion Matrix -->
+      <div class="grid-layout analytics-details-grid">
+        <!-- Pipeline Architecture Card -->
+        <div class="glass-card pipeline-card">
+          <div class="card-header">
+            <h2 class="card-title"><i class="fa-solid fa-diagram-project text-accent"></i> End-to-End Pipeline</h2>
+          </div>
+          <div class="pipeline-steps-vertical">
+            <div class="pipe-step">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <h4>Face Localization (OpenCV Haar Cascade)</h4>
+                <p>Detects frontal faces, verifies eye landmarks, and crops 160x160 aligned face regions.</p>
+              </div>
+            </div>
+            <div class="pipe-step">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <h4>2D Wavelet Frequency Decomposition (DWT db1)</h4>
+                <p>Separates invariant facial structural frequencies (LL, LH, HL, HH) to eliminate lighting variation.
+                </p>
+              </div>
+            </div>
+            <div class="pipe-step">
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <h4>StandardScaler + PCA Dimensionality Reduction</h4>
+                <p>Standardizes raw pixel + wavelet vector (16,384 dims) and compresses to orthogonal principal
+                  components.</p>
+              </div>
+            </div>
+            <div class="pipe-step">
+              <div class="step-num">4</div>
+              <div class="step-content">
+                <h4>Non-linear RBF Support Vector Machine</h4>
+                <p>Calibrated probability estimation with tuned C and gamma hyperparameters for maximum precision.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Confusion Matrix Visualizer -->
+        <div class="glass-card matrix-card">
+          <div class="card-header">
+            <h2 class="card-title"><i class="fa-solid fa-table-cells text-accent"></i> Confusion Matrix Heatmap</h2>
+            <button class="btn btn-sm btn-outline" id="refresh-metrics-btn">
+              <i class="fa-solid fa-arrows-rotate"></i> Refresh
+            </button>
+          </div>
+          <div class="matrix-preview-box">
+            <img id="confusion-matrix-img" src="/outputs/confusion_matrix.png" alt="Confusion Matrix Heatmap"
+              onerror="this.src='https://placehold.co/600x450/0b132b/00b4d8?text=Confusion+Matrix+Generated+Upon+Training'">
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <div class="footer-left">
+        <span class="footer-brand">🏏 CricVision AI</span> — Indian Cricket Team Face Identification System
+      </div>
+      <div class="footer-right">
+        <span>Powered by OpenCV, PyWavelets & Scikit-Learn</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/static/js/main.js"></script>
+</body>
+
+</html>
