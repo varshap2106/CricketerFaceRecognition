@@ -6,9 +6,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   // Global State
   let currentFile = null;
-  let webcamStream = null;
-  let autoScanInterval = null;
-  let isAutoScanning = false;
   let allPlayers = {};
 
   // DOM Elements - Navigation Tabs
@@ -43,7 +40,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const topRanksList = document.getElementById("top-ranks-list");
   const detectionCountBadge = document.getElementById("detection-count-badge");
 
-
   // DOM Elements - Roster
   const rosterGrid = document.getElementById("roster-grid");
   const rosterSearch = document.getElementById("roster-search");
@@ -66,11 +62,6 @@ document.addEventListener("DOMContentLoaded", () => {
       tab.classList.add("active");
       const activePanel = document.getElementById(targetTab);
       if (activePanel) activePanel.classList.add("active");
-
-      // Auto stop webcam if navigating away
-      if (targetTab !== "webcam-tab" && webcamStream) {
-        stopWebcam();
-      }
     });
   });
 
@@ -127,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /* ==========================================================
-     3. QUICK SAMPLES SELECTOR (REAL CRICKETER PHOTOS)
+     3. QUICK SAMPLES SELECTOR
      ========================================================== */
   sampleChips.forEach((chip) => {
     chip.addEventListener("click", async () => {
@@ -142,7 +133,6 @@ document.addEventListener("DOMContentLoaded", () => {
           handleSelectedFile(sampleFile);
           triggerPrediction(sampleFile);
         } else {
-          // Fallback to direct API call if static file is loading
           alert(`Loading sample for ${sampleSlug}...`);
         }
       } catch (err) {
@@ -224,7 +214,6 @@ document.addEventListener("DOMContentLoaded", () => {
       cardStatIcc.innerText = profile.icc_rank || "N/A";
       cardPlayerBio.innerText = profile.bio || "Input does not match indexed Indian cricketers.";
 
-      // Confidence Ranks Breakdown
       topRanksList.innerHTML = "";
       if (topDet.top_predictions && topDet.top_predictions.length > 0) {
         topDet.top_predictions.forEach((pred) => {
@@ -255,122 +244,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ==========================================================
-     5. LIVE WEBCAM AI SCANNER
-     ========================================================== */
-  btnStartCamera.addEventListener("click", startWebcam);
-  btnStopCamera.addEventListener("click", stopWebcam);
-  btnCaptureFrame.addEventListener("click", captureWebcamFrame);
-  btnToggleContinuous.addEventListener("click", toggleAutoScan);
-
-  async function startWebcam() {
-    try {
-      webcamStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 } }
-      });
-      webcamVideo.srcObject = webcamStream;
-      webcamPrompt.classList.add("hidden");
-      btnStartCamera.classList.add("hidden");
-      btnCaptureFrame.classList.remove("hidden");
-      btnStopCamera.classList.remove("hidden");
-
-      webcamStatusPill.innerHTML = '<span class="status-dot online"></span> Camera Live';
-    } catch (err) {
-      alert(`Could not access webcam: ${err.message}`);
-    }
-  }
-
-  function stopWebcam() {
-    if (webcamStream) {
-      webcamStream.getTracks().forEach((track) => track.stop());
-      webcamStream = null;
-    }
-    webcamVideo.srcObject = null;
-    webcamPrompt.classList.remove("hidden");
-    btnStartCamera.classList.remove("hidden");
-    btnCaptureFrame.classList.add("hidden");
-    btnStopCamera.classList.add("hidden");
-
-    if (isAutoScanning) {
-      toggleAutoScan();
-    }
-    webcamStatusPill.innerHTML = '<span class="status-dot"></span> Camera Idle';
-  }
-
-  async function captureWebcamFrame() {
-    if (!webcamStream) return;
-
-    webcamCanvas.width = webcamVideo.videoWidth || 640;
-    webcamCanvas.height = webcamVideo.videoHeight || 480;
-    const ctx = webcamCanvas.getContext("2d");
-    ctx.drawImage(webcamVideo, 0, 0, webcamCanvas.width, webcamCanvas.height);
-
-    const b64 = webcamCanvas.toDataURL("image/jpeg", 0.85);
-
-    try {
-      const resp = await fetch("/api/predict", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image_base64: b64 })
-      });
-      const data = await resp.json();
-      if (data.status === "success" && data.detections && data.detections.length > 0) {
-        renderWebcamResult(data.detections[0]);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  function renderWebcamResult(det) {
-    webcamEmptyState.classList.add("hidden");
-    webcamPlayerCard.classList.remove("hidden");
-    const profile = det.profile || {};
-    const pct = Math.round((det.confidence || 0) * 100);
-
-    webcamPlayerCard.innerHTML = `
-      <div class="player-card-header">
-        <div class="player-avatar-badge"><i class="fa-solid fa-user-check"></i></div>
-        <div class="player-headline">
-          <div class="jersey-pill">${profile.jersey_no ? (profile.jersey_no === '-' ? '-' : 'No. ' + profile.jersey_no) : 'Team India'}</div>
-          <h3 class="player-name">${det.player_name}</h3>
-          <div class="player-nickname">"${profile.nickname || 'Star Player'}"</div>
-        </div>
-        <div class="confidence-circle-wrap">
-          <div class="confidence-val">${pct}%</div>
-          <div class="confidence-label">Match Conf.</div>
-        </div>
-      </div>
-      <div class="conf-meter-wrapper">
-        <div class="conf-bar-track"><div class="conf-bar-fill" style="width: ${pct}%;"></div></div>
-      </div>
-      <div class="player-stats-grid">
-        <div class="stat-pill"><span class="stat-lbl">Role</span><strong class="stat-val">${profile.role || 'Player'}</strong></div>
-        <div class="stat-pill"><span class="stat-lbl">Runs</span><strong class="stat-val">${profile.runs ? profile.runs.toLocaleString() : 'N/A'}</strong></div>
-        <div class="stat-pill"><span class="stat-lbl">Centuries</span><strong class="stat-val">${profile.centuries !== undefined ? profile.centuries : 'N/A'}</strong></div>
-        <div class="stat-pill"><span class="stat-lbl">ICC Rank</span><strong class="stat-val">${profile.icc_rank || 'Top Rank'}</strong></div>
-      </div>
-    `;
-  }
-
-  function toggleAutoScan() {
-    isAutoScanning = !isAutoScanning;
-    if (isAutoScanning) {
-      autoScanStatus.innerText = "ON (2s)";
-      btnToggleContinuous.classList.add("btn-primary");
-      btnToggleContinuous.classList.remove("btn-outline");
-      autoScanInterval = setInterval(() => {
-        captureWebcamFrame();
-      }, 2000);
-    } else {
-      autoScanStatus.innerText = "OFF";
-      btnToggleContinuous.classList.remove("btn-primary");
-      btnToggleContinuous.classList.add("btn-outline");
-      clearInterval(autoScanInterval);
-    }
-  }
-
-  /* ==========================================================
-     6. TEAM ROSTER & SEARCH / FILTERING
+     5. TEAM ROSTER & SEARCH / FILTERING
      ========================================================== */
   async function loadTeamRoster() {
     try {
@@ -381,35 +255,45 @@ document.addEventListener("DOMContentLoaded", () => {
         renderRosterCards(Object.values(allPlayers));
       }
     } catch (e) {
-      console.error(e);
+      console.error("Error loading roster:", e);
     }
   }
 
   function renderRosterCards(playersList) {
+    if (!rosterGrid) return;
     rosterGrid.innerHTML = "";
+
+    if (!playersList || playersList.length === 0) {
+      rosterGrid.innerHTML = '<p style="color:#a4b0be;text-align:center;padding:2rem;grid-column:1/-1;">No players found.</p>';
+      return;
+    }
+
     playersList.forEach((player) => {
+      const runs = (player.runs || 0).toLocaleString();
       const card = document.createElement("div");
       card.className = "roster-card";
       card.innerHTML = `
         <div class="roster-card-header">
           <div class="jersey-circle">${player.jersey_no || '#'}</div>
-          <span class="role-badge">${player.role}</span>
+          <span class="role-badge">${player.role || 'Player'}</span>
         </div>
-        <h3 class="roster-player-name">${player.name}</h3>
-        <div class="roster-nickname">"${player.nickname}"</div>
+        <h3 class="roster-player-name">${player.name || 'Unknown'}</h3>
+        <div class="roster-nickname">"${player.nickname || ''}"</div>
         <div class="roster-stats-row">
-          <div class="roster-stat-col"><span>Runs</span><strong>${player.runs.toLocaleString()}</strong></div>
-          <div class="roster-stat-col"><span>100s</span><strong>${player.centuries}</strong></div>
-          <div class="roster-stat-col"><span>Wickets</span><strong>${player.wickets}</strong></div>
-          <div class="roster-stat-col"><span>Matches</span><strong>${player.matches}</strong></div>
+          <div class="roster-stat-col"><span>Runs</span><strong>${runs}</strong></div>
+          <div class="roster-stat-col"><span>100s</span><strong>${player.centuries || 0}</strong></div>
+          <div class="roster-stat-col"><span>Wickets</span><strong>${player.wickets || 0}</strong></div>
+          <div class="roster-stat-col"><span>Matches</span><strong>${player.matches || 0}</strong></div>
         </div>
-        <p class="roster-bio">${player.bio}</p>
+        <p class="roster-bio">${player.bio || ''}</p>
       `;
       rosterGrid.appendChild(card);
     });
   }
 
-  rosterSearch.addEventListener("input", filterRoster);
+  if (rosterSearch) {
+    rosterSearch.addEventListener("input", filterRoster);
+  }
 
   filterChips.forEach((chip) => {
     chip.addEventListener("click", () => {
@@ -420,17 +304,19 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   function filterRoster() {
-    const query = rosterSearch.value.toLowerCase();
-    const activeFilter = document.querySelector(".filter-chip.active").getAttribute("data-filter");
+    const query = rosterSearch ? rosterSearch.value.toLowerCase() : "";
+    const activeChip = document.querySelector(".filter-chip.active");
+    const activeFilter = activeChip ? activeChip.getAttribute("data-filter") : "all";
 
     const filtered = Object.values(allPlayers).filter((player) => {
       const matchesQuery =
-        player.name.toLowerCase().includes(query) ||
-        player.nickname.toLowerCase().includes(query) ||
-        player.role.toLowerCase().includes(query);
+        !query ||
+        (player.name || "").toLowerCase().includes(query) ||
+        (player.nickname || "").toLowerCase().includes(query) ||
+        (player.role || "").toLowerCase().includes(query);
 
       const matchesRole =
-        activeFilter === "all" || player.role.toLowerCase().includes(activeFilter.toLowerCase());
+        activeFilter === "all" || (player.role || "").toLowerCase().includes(activeFilter.toLowerCase());
 
       return matchesQuery && matchesRole;
     });
@@ -439,33 +325,39 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ==========================================================
-     7. MODEL RETRAINING & ANALYTICS
+     6. MODEL RETRAINING & ANALYTICS
      ========================================================== */
-  quickRetrainBtn.addEventListener("click", async () => {
-    quickRetrainBtn.disabled = true;
-    quickRetrainBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Training...';
+  if (quickRetrainBtn) {
+    quickRetrainBtn.addEventListener("click", async () => {
+      quickRetrainBtn.disabled = true;
+      quickRetrainBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Training...';
 
-    try {
-      const resp = await fetch("/api/retrain", { method: "POST" });
-      const data = await resp.json();
-      if (data.status === "success") {
-        alert(`Model retrained successfully! Best model: ${data.benchmark.best_model_name} (Acc: ${Math.round(data.benchmark.best_accuracy * 100)}%)`);
-        refreshMetrics();
-      } else {
-        alert(`Retraining Error: ${data.message}`);
+      try {
+        const resp = await fetch("/api/retrain", { method: "POST" });
+        const data = await resp.json();
+        if (data.status === "success") {
+          alert(`Model retrained successfully! Best model: ${data.benchmark.best_model_name} (Acc: ${Math.round(data.benchmark.best_accuracy * 100)}%)`);
+          refreshMetrics();
+        } else {
+          alert(`Retraining Error: ${data.message}`);
+        }
+      } catch (err) {
+        alert("Retrain request failed. Please check server logs.");
+      } finally {
+        quickRetrainBtn.disabled = false;
+        quickRetrainBtn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Retrain';
       }
-    } catch (err) {
-      alert("Retrain request failed. Please check server logs.");
-    } finally {
-      quickRetrainBtn.disabled = false;
-      quickRetrainBtn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Retrain';
-    }
-  });
+    });
+  }
 
-  refreshMetricsBtn.addEventListener("click", refreshMetrics);
+  if (refreshMetricsBtn) {
+    refreshMetricsBtn.addEventListener("click", refreshMetrics);
+  }
 
   function refreshMetrics() {
-    confusionMatrixImg.src = `/outputs/confusion_matrix.png?t=${new Date().getTime()}`;
+    if (confusionMatrixImg) {
+      confusionMatrixImg.src = `/outputs/confusion_matrix.png?t=${new Date().getTime()}`;
+    }
   }
 
   // Initial Data Load
